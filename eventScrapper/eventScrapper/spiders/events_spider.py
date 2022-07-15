@@ -1,7 +1,10 @@
 import scrapy
+from scrapy.crawler import CrawlerRunner
+from twisted.internet import reactor, defer
+from scrapy.utils.log import configure_logging
 
-class EventsSpider(scrapy.Spider): 
-   name = "events"
+class MticketsSpider(scrapy.Spider): 
+   name = "mtickets"
 
    start_urls = [
       "https://mtickets.com/events/upcoming"
@@ -22,3 +25,33 @@ class EventsSpider(scrapy.Spider):
       if next_page is not None:
          next_page = response.urljoin(next_page)
          yield scrapy.Request(next_page, callback=self.parse)
+
+
+class TicketsasaSpider(scrapy.Spider): 
+   name = "ticketsasa"
+
+   start_urls = [
+      "https://www.ticketsasa.com/events"
+   ]
+
+   def parse(self, response):
+      
+      posts = response.css('.tkt-evt')
+      for post in posts:
+         yield {
+            'title': post.css('.evt-info h3 a span::text').get(),
+            'time': post.css('.evt-info a::attr(content)')[0].get(),
+            'link': f"https://www.ticketsasa.com{post.css('.image::attr(href)').get()}"
+         }
+
+configure_logging()
+runner = CrawlerRunner()
+
+@defer.inlineCallbacks
+def crawl():
+   yield runner.crawl(MticketsSpider)
+   yield runner.crawl(TicketsasaSpider)
+   reactor.stop()
+
+crawl()
+reactor.run()
